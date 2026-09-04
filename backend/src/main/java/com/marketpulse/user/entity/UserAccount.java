@@ -33,7 +33,10 @@ public class UserAccount {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "threshold_percent", nullable = false, columnDefinition = "DOUBLE PRECISION DEFAULT 3.0")
+    // nullable = true here so Hibernate ddl-auto:update can safely ADD COLUMN on non-empty tables.
+    // The Java default (= 3.0) ensures every new UserAccount always has a value set before persist.
+    // DatabaseMigrationConfig backfills any pre-existing NULL rows to 3.0 on startup before Hibernate runs.
+    @Column(name = "threshold_percent", columnDefinition = "DOUBLE PRECISION DEFAULT 3.0")
     private Double thresholdPercent = 3.0;
 
     @Column(name = "created_at", nullable = false)
