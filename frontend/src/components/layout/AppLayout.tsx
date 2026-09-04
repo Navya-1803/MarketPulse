@@ -15,6 +15,7 @@ export function AppLayout() {
         <nav>
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/watchlists">Watchlists</NavLink>
+          <NavLink to="/stocks">Stocks</NavLink>
           <NavLink to="/profile">Profile</NavLink>
         </nav>
         <div className="side-footer">

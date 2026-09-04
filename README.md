@@ -177,7 +177,10 @@ All protected endpoints require `Authorization: Bearer <jwt_token>`.
 | `DELETE`| `/api/watchlists/{id}` | Delete watchlist | *None* | `204 No Content` | `401`, `403`, `404` |
 | `POST` | `/api/watchlists/{id}/stocks` | Add stock symbol to watchlist | `AddStockRequest` | `200 OK` `WatchlistResponse` | `400`, `401`, `403`, `404`, `409` |
 | `DELETE`| `/api/watchlists/{id}/stocks/{symbol}` | Remove stock symbol | *None* | `204 No Content` | `401`, `403`, `404` |
-| `GET` | `/api/market/{symbol}` | Fetch market quote for symbol | *None* | `200 OK` `MarketQuoteDto` | `400`, `401` |
+| `GET` | `/api/stocks` | Browse supported stock catalog with market quotes | *Optional `query`* | `200 OK` `List<MarketQuoteDto>` | `401` |
+| `GET` | `/api/stocks/search` | Search stocks by symbol or company name | `query` param | `200 OK` `List<MarketQuoteDto>` | `401` |
+| `GET` | `/api/stocks/{symbol}` | Fetch market quote for symbol | *None* | `200 OK` `MarketQuoteDto` | `400`, `401` |
+| `GET` | `/api/market/{symbol}` | Fetch market quote for symbol (alias) | *None* | `200 OK` `MarketQuoteDto` | `400`, `401` |
 | `GET` | `/api/dashboard` | Aggregated dashboard view | *None* | `200 OK` `DashboardResponse` | `401` |
 | `GET` | `/api/changes` | Change detection feed ranked by score | *None* | `200 OK` `ChangeSummaryDto` | `401` |
 | `POST` | `/api/checkpoints` | Advance checkpoint & persist snapshots | *None* | `200 OK` `CheckpointResponse` | `401` |

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { StatusPill } from "../../components/market/StatusPill";
+import { AddToWatchlistModal } from "../../components/watchlist/AddToWatchlistModal";
 import { getErrorMessage } from "../../services/apiClient";
 import { marketService } from "../../services/marketService";
 import type { AttentionItem, MarketQuote } from "../../types";
@@ -11,6 +12,8 @@ export function StockDetailsPage() {
   const [quote, setQuote] = useState<MarketQuote | null>(null);
   const [change, setChange] = useState<AttentionItem | null>(null);
   const [error, setError] = useState("");
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
 
   useEffect(() => {
     void Promise.all([marketService.quote(symbol), marketService.changes()])
@@ -21,6 +24,11 @@ export function StockDetailsPage() {
       .catch((err) => setError(getErrorMessage(err, "Could not load quote")));
   }, [symbol]);
 
+  const handleAddedToWatchlist = (watchlistName: string) => {
+    setSuccessMsg(`${symbol.toUpperCase()} added to ${watchlistName}`);
+    setTimeout(() => setSuccessMsg(""), 4000);
+  };
+
   if (error) {
     return <div className="alert">{error}</div>;
   }
@@ -30,17 +38,29 @@ export function StockDetailsPage() {
 
   return (
     <div>
-      <p>
+      <p style={{ display: "flex", gap: "1rem" }}>
+        <Link to="/stocks" className="text-link">
+          ← All Stocks
+        </Link>
+        <span className="muted">·</span>
         <Link to="/dashboard" className="text-link">
-          ← Dashboard
+          Dashboard
         </Link>
       </p>
+
+      {successMsg ? <div className="alert ok-alert" style={{ marginBottom: "1rem" }}>{successMsg}</div> : null}
+
       <header className="page-head">
         <div>
           <p className="eyebrow">{quote.companyName}</p>
           <h1>{quote.symbol}</h1>
         </div>
-        <StatusPill status={quote.status} />
+        <div style={{ display: "flex", alignItems: "center", gap: "0.8rem" }}>
+          <StatusPill status={quote.status} />
+          <button type="button" onClick={() => setIsModalOpen(true)}>
+            + Add to Watchlist
+          </button>
+        </div>
       </header>
       <section className="hero-card">
         <p className="display-count">{formatPrice(quote.price)}</p>
@@ -78,6 +98,14 @@ export function StockDetailsPage() {
           </ul>
         </section>
       ) : null}
+
+      <AddToWatchlistModal
+        symbol={quote.symbol}
+        companyName={quote.companyName}
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSuccess={handleAddedToWatchlist}
+      />
     </div>
   );
 }

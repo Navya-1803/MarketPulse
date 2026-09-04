@@ -3,6 +3,10 @@ import type { ChangeSummary, DashboardData, MarketQuote } from "../types";
 
 export const marketService = {
   quote: (symbol: string) => apiClient.get<MarketQuote>(`/api/market/${symbol}`).then((res) => res.data),
+  stocks: (query?: string) =>
+    apiClient.get<MarketQuote[]>("/api/stocks", { params: query ? { query } : undefined }).then((res) => res.data),
+  searchStocks: (query: string) =>
+    apiClient.get<MarketQuote[]>("/api/stocks/search", { params: { query } }).then((res) => res.data),
   dashboard: () => apiClient.get<DashboardData>("/api/dashboard").then((res) => res.data),
   changes: () => apiClient.get<ChangeSummary>("/api/changes").then((res) => res.data),
   acknowledge: () => apiClient.post("/api/checkpoints"),

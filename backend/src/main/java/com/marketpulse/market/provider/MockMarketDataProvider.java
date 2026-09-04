@@ -19,7 +19,14 @@ public class MockMarketDataProvider implements MarketDataProvider {
             Map.entry("AMZN", new CompanySeed("Amazon.com Inc.", 186.50, 41_000_000)),
             Map.entry("TSLA", new CompanySeed("Tesla, Inc.", 340.10, 89_000_000)),
             Map.entry("META", new CompanySeed("Meta Platforms, Inc.", 512.40, 18_700_000)),
-            Map.entry("NFLX", new CompanySeed("Netflix, Inc.", 701.20, 4_200_000))
+            Map.entry("NFLX", new CompanySeed("Netflix, Inc.", 701.20, 4_200_000)),
+            Map.entry("AMD", new CompanySeed("Advanced Micro Devices, Inc.", 148.50, 45_000_000)),
+            Map.entry("INTC", new CompanySeed("Intel Corporation", 22.80, 58_000_000)),
+            Map.entry("JPM", new CompanySeed("JPMorgan Chase & Co.", 218.40, 9_500_000)),
+            Map.entry("V", new CompanySeed("Visa Inc.", 284.10, 6_200_000)),
+            Map.entry("MA", new CompanySeed("Mastercard Incorporated", 488.70, 2_800_000)),
+            Map.entry("BAC", new CompanySeed("Bank of America Corporation", 40.25, 34_000_000)),
+            Map.entry("WMT", new CompanySeed("Walmart Inc.", 78.90, 16_500_000))
     );
 
     @Override

@@ -5,6 +5,7 @@ import { LoginPage } from "./pages/Login/LoginPage";
 import { ProfilePage } from "./pages/Profile/ProfilePage";
 import { RegisterPage } from "./pages/Register/RegisterPage";
 import { StockDetailsPage } from "./pages/StockDetails/StockDetailsPage";
+import { StocksPage } from "./pages/Stocks/StocksPage";
 import { WatchlistPage } from "./pages/Watchlist/WatchlistPage";
 import { ProtectedRoute } from "./routes/ProtectedRoute";
 
@@ -18,6 +19,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/watchlists" element={<WatchlistPage />} />
           <Route path="/watchlists/:id" element={<WatchlistPage />} />
+          <Route path="/stocks" element={<StocksPage />} />
           <Route path="/stocks/:symbol" element={<StockDetailsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>
