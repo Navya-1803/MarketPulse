@@ -90,3 +90,34 @@ export interface ApiErrorBody {
   path: string;
   details?: string[];
 }
+
+export interface StockHistoryPoint {
+  timestamp: string;
+  price: number;
+  open?: number | null;
+  high?: number | null;
+  low?: number | null;
+  volume?: number | null;
+}
+
+export interface StockHistoryResponse {
+  symbol: string;
+  range: string;
+  points: StockHistoryPoint[];
+}
+
+export interface UserSettings {
+  thresholdPercent: number;
+}
+
+export interface NotificationItem {
+  id: number;
+  symbol: string;
+  changeType: ChangeType;
+  changePercent: number;
+  severity: ChangeSeverity;
+  attentionScore: number;
+  reasons: string[];
+  detectedAt: string;
+  acknowledged: boolean;
+}

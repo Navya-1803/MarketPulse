@@ -9,6 +9,15 @@ import { formatPercent, formatPrice, formatVolume, formatWhen } from "../../util
 
 const PAGE_SIZE = 25;
 
+const FILTERS = [
+  { id: "ALL", label: "All Stocks" },
+  { id: "GAINERS", label: "Gainers ▲" },
+  { id: "LOSERS", label: "Losers ▼" },
+  { id: "HIGH_VOLUME", label: "High Volume" },
+  { id: "NEAR_HIGH", label: "Near Day High" },
+  { id: "NEAR_LOW", label: "Near Day Low" },
+] as const;
+
 export function StocksPage() {
   const [stocks, setStocks] = useState<MarketQuote[]>([]);
   const [page, setPage] = useState(0);
@@ -20,11 +29,17 @@ export function StocksPage() {
   const [searchInput, setSearchInput] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
 
+  const [filter, setFilter] = useState<string>("ALL");
+  const [sortKey, setSortKey] = useState<string>("symbol-asc");
+
   const [modalStock, setModalStock] = useState<MarketQuote | null>(null);
   const [successMsg, setSuccessMsg] = useState("");
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const isFetchingRef = useRef(false);
+
+  // Parse sortBy and sortDirection from sortKey
+  const [sortBy, sortDirection] = sortKey.split("-");
 
   // Debounce search query input by 350ms
   useEffect(() => {
@@ -36,7 +51,7 @@ export function StocksPage() {
 
   // Fetch stocks function
   const fetchPage = useCallback(
-    async (pageToFetch: number, query: string, isInitial: boolean) => {
+    async (pageToFetch: number, query: string, activeFilter: string, activeSortBy: string, activeSortDir: string, isInitial: boolean) => {
       if (isFetchingRef.current) {
         return;
       }
@@ -54,6 +69,9 @@ export function StocksPage() {
           page: pageToFetch,
           size: PAGE_SIZE,
           query: query || undefined,
+          filter: activeFilter,
+          sortBy: activeSortBy,
+          sortDirection: activeSortDir,
         });
 
         setStocks((prev) => {
@@ -79,12 +97,12 @@ export function StocksPage() {
     []
   );
 
-  // Triggered when debouncedQuery changes -> reset to page 0
+  // Triggered when query, filter, or sort changes -> reset to page 0
   useEffect(() => {
     setPage(0);
     setHasNext(false);
-    void fetchPage(0, debouncedQuery, true);
-  }, [debouncedQuery, fetchPage]);
+    void fetchPage(0, debouncedQuery, filter, sortBy, sortDirection, true);
+  }, [debouncedQuery, filter, sortBy, sortDirection, fetchPage]);
 
   // Infinite scroll intersection observer
   useEffect(() => {
@@ -103,7 +121,7 @@ export function StocksPage() {
           !loadingMore &&
           !isFetchingRef.current
         ) {
-          void fetchPage(page + 1, debouncedQuery, false);
+          void fetchPage(page + 1, debouncedQuery, filter, sortBy, sortDirection, false);
         }
       },
       { rootMargin: "250px" }
@@ -113,7 +131,7 @@ export function StocksPage() {
     return () => {
       observer.disconnect();
     };
-  }, [hasNext, initialLoading, loadingMore, page, debouncedQuery, fetchPage]);
+  }, [hasNext, initialLoading, loadingMore, page, debouncedQuery, filter, sortBy, sortDirection, fetchPage]);
 
   const handleAddedToWatchlist = (watchlistName: string) => {
     if (modalStock) {
@@ -137,6 +155,7 @@ export function StocksPage() {
       {successMsg ? <div className="alert ok-alert">{successMsg}</div> : null}
       {error ? <div className="alert">{error}</div> : null}
 
+      {/* Search & Controls Section */}
       <div className="search-section">
         <div className="search-box">
           <input
@@ -157,6 +176,45 @@ export function StocksPage() {
             </button>
           ) : null}
         </div>
+
+        {/* Sort dropdown */}
+        <div className="sort-control">
+          <label htmlFor="stock-sort-select" className="muted" style={{ fontSize: "0.8rem", marginRight: "0.5rem" }}>
+            Sort:
+          </label>
+          <select
+            id="stock-sort-select"
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value)}
+            className="select-input"
+            aria-label="Sort stocks"
+          >
+            <option value="symbol-asc">Symbol (A → Z)</option>
+            <option value="symbol-desc">Symbol (Z → A)</option>
+            <option value="name-asc">Company Name (A → Z)</option>
+            <option value="changepercent-desc">% Change (High → Low)</option>
+            <option value="changepercent-asc">% Change (Low → High)</option>
+            <option value="price-desc">Price (High → Low)</option>
+            <option value="price-asc">Price (Low → High)</option>
+            <option value="volume-desc">Volume (High → Low)</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Filter Tabs */}
+      <div className="filter-tabs-bar" role="tablist" aria-label="Stock filters">
+        {FILTERS.map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            role="tab"
+            aria-selected={filter === f.id}
+            className={`filter-tab-btn ${filter === f.id ? "active" : ""}`}
+            onClick={() => setFilter(f.id)}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {initialLoading ? (
@@ -173,7 +231,7 @@ export function StocksPage() {
               </p>
             </>
           ) : (
-            <p className="muted">No stocks available at this time.</p>
+            <p className="muted">No stocks available under this filter.</p>
           )}
         </div>
       ) : (

@@ -140,4 +140,65 @@ class StocksIntegrationTest {
                 .andExpect(jsonPath("$.totalElements").value(0))
                 .andExpect(jsonPath("$.hasNext").value(false));
     }
+
+    @Test
+    void getStockHistoryReturnsTimeSeriesPoints() throws Exception {
+        mockMvc.perform(get("/api/stocks/NVDA/history")
+                        .param("range", "1D")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.symbol").value("NVDA"))
+                .andExpect(jsonPath("$.range").value("1D"))
+                .andExpect(jsonPath("$.points").isArray())
+                .andExpect(jsonPath("$.points", hasSize(greaterThanOrEqualTo(20))))
+                .andExpect(jsonPath("$.points[0].price").isNumber());
+    }
+
+    @Test
+    void filterGainersReturnsPositiveMoves() throws Exception {
+        mockMvc.perform(get("/api/stocks")
+                        .param("filter", "GAINERS")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
+    }
+
+    @Test
+    void sortStocksByPriceDescending() throws Exception {
+        mockMvc.perform(get("/api/stocks")
+                        .param("sortBy", "price")
+                        .param("sortDirection", "desc")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content", hasSize(greaterThanOrEqualTo(1))));
+    }
+
+    @Test
+    void userSettingsCanBeRetrievedAndUpdated() throws Exception {
+        mockMvc.perform(get("/api/settings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.thresholdPercent").value(3.0));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/api/settings")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"thresholdPercent\": 4.5}")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.thresholdPercent").value(4.5));
+
+        mockMvc.perform(get("/api/settings")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.thresholdPercent").value(4.5));
+    }
+
+    @Test
+    void notificationsEndpointWorks() throws Exception {
+        mockMvc.perform(get("/api/notifications")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$").isArray());
+    }
 }

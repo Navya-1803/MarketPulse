@@ -25,4 +25,21 @@ public class UserService {
     public UserDto toDto(UserAccount user) {
         return new UserDto(user.getId(), user.getName(), user.getEmail());
     }
+
+    @Transactional(readOnly = true)
+    public com.marketpulse.user.dto.UserSettingsDto getSettings(Long userId) {
+        UserAccount user = getById(userId);
+        Double threshold = user.getThresholdPercent() != null ? user.getThresholdPercent() : 3.0;
+        return new com.marketpulse.user.dto.UserSettingsDto(threshold);
+    }
+
+    @Transactional
+    public com.marketpulse.user.dto.UserSettingsDto updateSettings(Long userId, com.marketpulse.user.dto.UserSettingsDto dto) {
+        UserAccount user = getById(userId);
+        if (dto.thresholdPercent() != null) {
+            user.setThresholdPercent(dto.thresholdPercent());
+            userRepository.save(user);
+        }
+        return new com.marketpulse.user.dto.UserSettingsDto(user.getThresholdPercent());
+    }
 }

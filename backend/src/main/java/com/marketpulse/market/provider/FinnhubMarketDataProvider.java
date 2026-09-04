@@ -155,6 +155,83 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
         }
     }
 
+    @Override
+    public Optional<com.marketpulse.market.dto.StockHistoryResponse> getStockHistory(String symbol, String range) {
+        String apiKey = properties.finnhub().apiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            return Optional.empty();
+        }
+        String cleanSymbol = symbol.toUpperCase(Locale.ROOT);
+        String cleanRange = (range != null && !range.isBlank()) ? range.toUpperCase(Locale.ROOT) : "1D";
+
+        long to = Instant.now().getEpochSecond();
+        long from;
+        String resolution;
+
+        switch (cleanRange) {
+            case "1W" -> {
+                from = to - (7 * 24 * 3600);
+                resolution = "60";
+            }
+            case "1M" -> {
+                from = to - (30 * 24 * 3600);
+                resolution = "D";
+            }
+            case "3M" -> {
+                from = to - (90 * 24 * 3600);
+                resolution = "D";
+            }
+            default -> { // "1D"
+                from = to - (24 * 3600);
+                resolution = "15";
+            }
+        }
+
+        try {
+            CandleResponse candle = restClient.get()
+                    .uri(uri -> uri.path("/stock/candle")
+                            .queryParam("symbol", cleanSymbol)
+                            .queryParam("resolution", resolution)
+                            .queryParam("from", from)
+                            .queryParam("to", to)
+                            .queryParam("token", apiKey)
+                            .build())
+                    .retrieve()
+                    .body(CandleResponse.class);
+
+            if (candle == null || !"ok".equalsIgnoreCase(candle.s()) || candle.t() == null || candle.t().isEmpty()) {
+                return Optional.empty();
+            }
+
+            List<com.marketpulse.market.dto.StockHistoryPointDto> points = new ArrayList<>();
+            int size = candle.t().size();
+            for (int i = 0; i < size; i++) {
+                Instant timestamp = Instant.ofEpochSecond(candle.t().get(i));
+                Double close = (candle.c() != null && candle.c().size() > i) ? candle.c().get(i) : null;
+                Double open = (candle.o() != null && candle.o().size() > i) ? candle.o().get(i) : close;
+                Double high = (candle.h() != null && candle.h().size() > i) ? candle.h().get(i) : close;
+                Double low = (candle.l() != null && candle.l().size() > i) ? candle.l().get(i) : close;
+                Long volume = (candle.v() != null && candle.v().size() > i) ? candle.v().get(i) : null;
+
+                if (close != null) {
+                    points.add(new com.marketpulse.market.dto.StockHistoryPointDto(
+                            timestamp,
+                            scale(close),
+                            scale(open),
+                            scale(high),
+                            scale(low),
+                            volume
+                    ));
+                }
+            }
+
+            return Optional.of(new com.marketpulse.market.dto.StockHistoryResponse(cleanSymbol, cleanRange, points));
+        } catch (Exception ex) {
+            log.warn("Finnhub candle query failed for {}: {}", cleanSymbol, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
     private BigDecimal scale(Double value) {
         if (value == null) {
             return null;
@@ -168,6 +245,18 @@ public class FinnhubMarketDataProvider implements MarketDataProvider {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record ProfileResponse(String name) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    public record CandleResponse(
+            List<Double> c,
+            List<Double> h,
+            List<Double> l,
+            List<Double> o,
+            String s,
+            List<Long> t,
+            List<Long> v
+    ) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

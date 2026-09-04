@@ -18,13 +18,21 @@ public class AttentionScoreCalculator {
     }
 
     public ChangeSeverity severityFor(double absPercent) {
-        if (absPercent >= thresholds.criticalPercent()) {
+        return severityFor(absPercent, null);
+    }
+
+    public ChangeSeverity severityFor(double absPercent, Double userThreshold) {
+        double significant = (userThreshold != null && userThreshold > 0) ? userThreshold : thresholds.significantPercent();
+        double critical = significant * 2.5;
+        double notable = significant * 0.66;
+
+        if (absPercent >= critical) {
             return ChangeSeverity.CRITICAL;
         }
-        if (absPercent >= thresholds.significantPercent()) {
+        if (absPercent >= significant) {
             return ChangeSeverity.SIGNIFICANT;
         }
-        if (absPercent >= thresholds.notablePercent()) {
+        if (absPercent >= notable) {
             return ChangeSeverity.NOTABLE;
         }
         return ChangeSeverity.NORMAL;
@@ -74,11 +82,25 @@ public class AttentionScoreCalculator {
             boolean nearHigh,
             boolean nearLow
     ) {
+        return explanations(symbol, changePercent, severity, volumeAnomaly, volumeMultiplier, nearHigh, nearLow, null);
+    }
+
+    public List<String> explanations(
+            String symbol,
+            double changePercent,
+            ChangeSeverity severity,
+            boolean volumeAnomaly,
+            Double volumeMultiplier,
+            boolean nearHigh,
+            boolean nearLow,
+            Double userThreshold
+    ) {
+        double threshold = (userThreshold != null && userThreshold > 0) ? userThreshold : thresholds.significantPercent();
         List<String> reasons = new ArrayList<>();
         String direction = changePercent >= 0 ? "increased" : "decreased";
         reasons.add(symbol + " price " + direction + " " + format(Math.abs(changePercent)) + "% since your last check.");
         if (severity.ordinal() >= ChangeSeverity.SIGNIFICANT.ordinal()) {
-            reasons.add("Move exceeds your configured " + format(thresholds.significantPercent()) + "% threshold.");
+            reasons.add("Move exceeds your configured " + format(threshold) + "% threshold.");
         }
         if (volumeAnomaly && volumeMultiplier != null) {
             reasons.add("Volume is " + format(volumeMultiplier) + "× its recent average.");

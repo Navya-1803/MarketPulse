@@ -46,6 +46,10 @@ public class MarketDataService {
         return result;
     }
 
+    public Optional<com.marketpulse.market.dto.StockHistoryResponse> getStockHistory(String symbol, String range) {
+        return marketDataProvider.getStockHistory(symbol, range);
+    }
+
     public Optional<MarketQuote> fetchQuote(String symbol) {
         CachedQuote cached = cache.get(symbol);
         Instant now = Instant.now();

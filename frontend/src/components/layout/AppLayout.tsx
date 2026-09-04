@@ -1,5 +1,6 @@
 import { Link, NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
+import { NotificationBell } from "./NotificationBell";
 
 export function AppLayout() {
   const { user, logout } = useAuth();
@@ -7,16 +8,19 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <aside className="side-nav">
-        <Link to="/dashboard" className="brand">
-          <span className="brand-mark" />
-          MarketPulse
-        </Link>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <Link to="/dashboard" className="brand">
+            <span className="brand-mark" />
+            MarketPulse
+          </Link>
+          <NotificationBell />
+        </div>
         <p className="brand-tag">Track · Remember · Compare</p>
         <nav>
           <NavLink to="/dashboard">Dashboard</NavLink>
           <NavLink to="/watchlists">Watchlists</NavLink>
           <NavLink to="/stocks">Stocks</NavLink>
-          <NavLink to="/profile">Profile</NavLink>
+          <NavLink to="/profile">Profile / Settings</NavLink>
         </nav>
         <div className="side-footer">
           <div className="user-chip">

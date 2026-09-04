@@ -14,6 +14,7 @@ import com.marketpulse.market.dto.MarketQuoteDto;
 import com.marketpulse.market.entity.MarketSnapshot;
 import com.marketpulse.market.provider.MarketQuote;
 import com.marketpulse.market.service.MarketDataService;
+import com.marketpulse.user.repository.UserRepository;
 import com.marketpulse.watchlist.service.WatchlistService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -35,6 +36,7 @@ public class ChangeDetectionService {
     private final ChangeEventRepository changeEventRepository;
     private final AttentionScoreCalculator scoreCalculator;
     private final ObjectMapper objectMapper;
+    private final UserRepository userRepository;
 
     public ChangeDetectionService(
             WatchlistService watchlistService,
@@ -42,7 +44,8 @@ public class ChangeDetectionService {
             UserCheckpointRepository checkpointRepository,
             ChangeEventRepository changeEventRepository,
             AttentionScoreCalculator scoreCalculator,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            UserRepository userRepository
     ) {
         this.watchlistService = watchlistService;
         this.marketDataService = marketDataService;
@@ -50,6 +53,7 @@ public class ChangeDetectionService {
         this.changeEventRepository = changeEventRepository;
         this.scoreCalculator = scoreCalculator;
         this.objectMapper = objectMapper;
+        this.userRepository = userRepository;
     }
 
     @Transactional
@@ -57,6 +61,10 @@ public class ChangeDetectionService {
         Instant lastCheckedAt = checkpointRepository.findByUserId(userId)
                 .map(UserCheckpoint::getLastCheckedAt)
                 .orElse(null);
+        Double userThreshold = userRepository.findById(userId)
+                .map(u -> u.getThresholdPercent() != null ? u.getThresholdPercent() : 3.0)
+                .orElse(3.0);
+
         List<String> symbols = watchlistService.symbolsForUser(userId);
         List<AttentionItemDto> items = new ArrayList<>();
 
@@ -69,7 +77,7 @@ public class ChangeDetectionService {
             Optional<MarketSnapshot> previous = marketDataService.lastSnapshot(userId, symbol);
             BigDecimal previousPrice = previous.map(MarketSnapshot::getPrice).orElseGet(() -> inferOpen(quote));
             Long previousVolume = previous.map(MarketSnapshot::getVolume).orElse(quote.volume());
-            detectForSymbol(userId, quote, previousPrice, previousVolume, lastCheckedAt).ifPresent(items::add);
+            detectForSymbol(userId, quote, previousPrice, previousVolume, lastCheckedAt, userThreshold).ifPresent(items::add);
         }
 
         items.sort(Comparator.comparingInt(AttentionItemDto::attentionScore).reversed());
@@ -85,7 +93,8 @@ public class ChangeDetectionService {
             MarketQuote current,
             BigDecimal previousPrice,
             Long previousVolume,
-            Instant lastCheckedAt
+            Instant lastCheckedAt,
+            Double userThreshold
     ) {
         if (previousPrice == null || previousPrice.compareTo(BigDecimal.ZERO) == 0) {
             return Optional.empty();
@@ -94,7 +103,7 @@ public class ChangeDetectionService {
                 .divide(previousPrice, 6, RoundingMode.HALF_UP)
                 .multiply(BigDecimal.valueOf(100));
         double abs = Math.abs(changePercent.doubleValue());
-        ChangeSeverity severity = scoreCalculator.severityFor(abs);
+        ChangeSeverity severity = scoreCalculator.severityFor(abs, userThreshold);
         boolean volumeAnomaly = scoreCalculator.isVolumeAnomaly(previousVolume, current.volume());
         boolean nearHigh = scoreCalculator.isNearExtreme(current.price(), current.dayHigh());
         boolean nearLow = scoreCalculator.isNearExtreme(current.price(), current.dayLow());
@@ -111,7 +120,8 @@ public class ChangeDetectionService {
                 volumeAnomaly,
                 volumeMultiplier,
                 nearHigh,
-                nearLow
+                nearLow,
+                userThreshold
         );
         ChangeType type = ChangeType.PRICE_MOVEMENT;
         if (volumeAnomaly && abs < 2) {

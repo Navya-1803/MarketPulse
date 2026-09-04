@@ -148,6 +148,61 @@ public class MockMarketDataProvider implements MarketDataProvider {
         ));
     }
 
+    @Override
+    public Optional<com.marketpulse.market.dto.StockHistoryResponse> getStockHistory(String symbol, String range) {
+        String key = symbol.toUpperCase(Locale.ROOT);
+        CompanySeed seed = SEEDS.getOrDefault(key, new CompanySeed(key + " Inc.", 80 + Math.abs(key.hashCode() % 120), 8_000_000L, "US"));
+        String cleanRange = (range != null && !range.isBlank()) ? range.toUpperCase(Locale.ROOT) : "1D";
+
+        int count;
+        long stepSeconds;
+        switch (cleanRange) {
+            case "1W" -> {
+                count = 28;
+                stepSeconds = 6 * 3600;
+            }
+            case "1M" -> {
+                count = 30;
+                stepSeconds = 24 * 3600;
+            }
+            case "3M" -> {
+                count = 90;
+                stepSeconds = 24 * 3600;
+            }
+            default -> { // "1D"
+                count = 24;
+                stepSeconds = 3600;
+            }
+        }
+
+        Instant now = Instant.now();
+        List<com.marketpulse.market.dto.StockHistoryPointDto> points = new ArrayList<>(count);
+        double currentPrice = seed.basePrice();
+
+        for (int i = count - 1; i >= 0; i--) {
+            Instant timestamp = now.minusSeconds(i * stepSeconds);
+            double progress = (double) (count - 1 - i) / count;
+            double wave = Math.sin((progress * Math.PI * 4) + key.hashCode() * 0.1);
+            double noise = ((Math.abs((key.hashCode() + i * 31) % 100)) - 50) / 1500.0;
+            double priceAtTime = seed.basePrice() * (1.0 + (wave * 0.035) + noise + (progress * 0.02));
+            double open = priceAtTime * 0.998;
+            double high = Math.max(open, priceAtTime) * 1.006;
+            double low = Math.min(open, priceAtTime) * 0.994;
+            long volume = Math.round(seed.baseVolume() / (double) count * (0.8 + Math.abs(wave) * 0.4));
+
+            points.add(new com.marketpulse.market.dto.StockHistoryPointDto(
+                    timestamp,
+                    scale(priceAtTime),
+                    scale(open),
+                    scale(high),
+                    scale(low),
+                    volume
+            ));
+        }
+
+        return Optional.of(new com.marketpulse.market.dto.StockHistoryResponse(key, cleanRange, points));
+    }
+
     private BigDecimal scale(double value) {
         return BigDecimal.valueOf(value).setScale(2, RoundingMode.HALF_UP);
     }

@@ -190,4 +190,26 @@ describe("StocksPage", () => {
       expect(screen.getByText("Tech Giants")).toBeDefined();
     });
   });
+
+  it("updates filter when clicking a filter tab", async () => {
+    render(
+      <MemoryRouter>
+        <StocksPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText("NVDA")).toBeDefined();
+    });
+
+    const gainersTab = screen.getByRole("tab", { name: /gainers/i });
+    fireEvent.click(gainersTab);
+
+    await waitFor(() => {
+      expect(marketService.stocks).toHaveBeenCalledWith(
+        expect.objectContaining({ filter: "GAINERS", page: 0 })
+      );
+    });
+  });
 });
+
