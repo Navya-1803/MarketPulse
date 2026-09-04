@@ -14,6 +14,15 @@ export interface AuthResponse {
   user: User;
 }
 
+export interface PageResponse<T> {
+  content: T[];
+  page: number;
+  size: number;
+  totalElements: number;
+  totalPages: number;
+  hasNext: boolean;
+}
+
 export interface MarketQuote {
   symbol: string;
   companyName: string | null;
@@ -22,7 +31,11 @@ export interface MarketQuote {
   changePercent: number | null;
   dayHigh: number | null;
   dayLow: number | null;
+  open?: number | null;
+  previousClose?: number | null;
   volume: number | null;
+  currency?: string | null;
+  exchange?: string | null;
   capturedAt: string | null;
   status: MarketStatus;
   message: string | null;

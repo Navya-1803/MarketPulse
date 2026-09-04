@@ -3,8 +3,17 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { marketService } from "../../services/marketService";
 import { watchlistService } from "../../services/watchlistService";
-import type { MarketQuote, Watchlist } from "../../types";
+import type { MarketQuote, PageResponse, Watchlist } from "../../types";
 import { StocksPage } from "./StocksPage";
+
+// Mock IntersectionObserver for JSDOM
+beforeEach(() => {
+  window.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+});
 
 vi.mock("../../services/marketService", () => ({
   marketService: {
@@ -28,7 +37,11 @@ const mockStocks: MarketQuote[] = [
     changePercent: 3.21,
     dayHigh: 181.2,
     dayLow: 172.4,
+    open: 174.0,
+    previousClose: 173.0,
     volume: 48200000,
+    currency: "USD",
+    exchange: "NASDAQ",
     capturedAt: "2026-09-04T10:42:00Z",
     status: "LIVE",
     message: null,
@@ -41,7 +54,11 @@ const mockStocks: MarketQuote[] = [
     changePercent: -3.55,
     dayHigh: 355.0,
     dayLow: 338.2,
+    open: 350.0,
+    previousClose: 352.6,
     volume: 89000000,
+    currency: "USD",
+    exchange: "NASDAQ",
     capturedAt: "2026-09-04T10:42:00Z",
     status: "DELAYED",
     message: null,
@@ -54,12 +71,25 @@ const mockStocks: MarketQuote[] = [
     changePercent: 0.78,
     dayHigh: 233.0,
     dayLow: 230.1,
+    open: 230.0,
+    previousClose: 229.41,
     volume: 52100000,
+    currency: "USD",
+    exchange: "NASDAQ",
     capturedAt: "2026-09-04T10:42:00Z",
     status: "LIVE",
     message: null,
   },
 ];
+
+const mockPageResponse: PageResponse<MarketQuote> = {
+  content: mockStocks,
+  page: 0,
+  size: 25,
+  totalElements: 3,
+  totalPages: 1,
+  hasNext: false,
+};
 
 const mockWatchlists: Watchlist[] = [
   {
@@ -75,18 +105,18 @@ const mockWatchlists: Watchlist[] = [
 describe("StocksPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(marketService.stocks).mockResolvedValue(mockStocks);
+    vi.mocked(marketService.stocks).mockResolvedValue(mockPageResponse);
     vi.mocked(watchlistService.list).mockResolvedValue(mockWatchlists);
   });
 
-  it("renders Market heading, search box, and all available stocks", async () => {
+  it("renders Market heading, initial loading state, and all paginated stocks", async () => {
     render(
       <MemoryRouter>
         <StocksPage />
       </MemoryRouter>
     );
 
-    expect(screen.getByText(/loading available market stocks/i)).toBeDefined();
+    expect(screen.getByText(/loading market data\.\.\./i)).toBeDefined();
 
     await waitFor(() => {
       expect(screen.getByRole("heading", { level: 1, name: "Market" })).toBeDefined();
@@ -102,9 +132,11 @@ describe("StocksPage", () => {
 
     expect(screen.getByText("AAPL")).toBeDefined();
     expect(screen.getByText("Apple Inc.")).toBeDefined();
+
+    expect(screen.getByText(/no more stocks to load\./i)).toBeDefined();
   });
 
-  it("filters stocks when searching by symbol or company name", async () => {
+  it("triggers debounced search when user types in search input", async () => {
     render(
       <MemoryRouter>
         <StocksPage />
@@ -117,22 +149,26 @@ describe("StocksPage", () => {
 
     const searchInput = screen.getByPlaceholderText(/search stocks by symbol or company name/i);
 
-    // Search by company name
+    // Mock search response
+    vi.mocked(marketService.stocks).mockResolvedValueOnce({
+      content: [mockStocks[1]], // TSLA only
+      page: 0,
+      size: 25,
+      totalElements: 1,
+      totalPages: 1,
+      hasNext: false,
+    });
+
     fireEvent.change(searchInput, { target: { value: "Tesla" } });
 
-    expect(screen.getByText("TSLA")).toBeDefined();
-    expect(screen.queryByText("NVDA")).toBeNull();
-    expect(screen.queryByText("AAPL")).toBeNull();
-
-    // Clear search
-    fireEvent.change(searchInput, { target: { value: "" } });
-    expect(screen.getByText("NVDA")).toBeDefined();
-    expect(screen.getByText("AAPL")).toBeDefined();
-
-    // Search by symbol
-    fireEvent.change(searchInput, { target: { value: "aapl" } });
-    expect(screen.getByText("AAPL")).toBeDefined();
-    expect(screen.queryByText("NVDA")).toBeNull();
+    await waitFor(
+      () => {
+        expect(marketService.stocks).toHaveBeenCalledWith(
+          expect.objectContaining({ query: "Tesla", page: 0 })
+        );
+      },
+      { timeout: 1000 }
+    );
   });
 
   it("opens add to watchlist modal when clicking Add to Watchlist", async () => {

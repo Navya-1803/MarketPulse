@@ -1,9 +1,9 @@
 package com.marketpulse.market.controller;
 
+import com.marketpulse.common.response.PageResponse;
 import com.marketpulse.market.dto.MarketQuoteDto;
 import com.marketpulse.market.service.MarketDataService;
 import com.marketpulse.market.service.StockCatalogService;
-import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,13 +23,21 @@ public class StocksController {
     }
 
     @GetMapping
-    public List<MarketQuoteDto> list(@RequestParam(required = false) String query) {
-        return stockCatalogService.getCatalogQuotes(query);
+    public PageResponse<MarketQuoteDto> list(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size,
+            @RequestParam(required = false) String query
+    ) {
+        return stockCatalogService.getPaginatedQuotes(page, size, query);
     }
 
     @GetMapping("/search")
-    public List<MarketQuoteDto> search(@RequestParam(required = false, defaultValue = "") String query) {
-        return stockCatalogService.getCatalogQuotes(query);
+    public PageResponse<MarketQuoteDto> search(
+            @RequestParam(required = false, defaultValue = "") String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "25") int size
+    ) {
+        return stockCatalogService.getPaginatedQuotes(page, size, query);
     }
 
     @GetMapping("/{symbol}")

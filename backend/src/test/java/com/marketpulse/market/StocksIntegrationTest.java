@@ -1,7 +1,9 @@
 package com.marketpulse.market;
 
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -55,15 +57,43 @@ class StocksIntegrationTest {
     }
 
     @Test
-    void listCatalogReturnsSupportedStocksWithQuotes() throws Exception {
+    void listCatalogReturnsPaginatedStocksWithQuotes() throws Exception {
         mockMvc.perform(get("/api/stocks")
+                        .param("page", "0")
+                        .param("size", "25")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$").isArray())
-                .andExpect(jsonPath("$", hasSize(greaterThanOrEqualTo(15))))
-                .andExpect(jsonPath("$[0].symbol").isNotEmpty())
-                .andExpect(jsonPath("$[0].companyName").isNotEmpty())
-                .andExpect(jsonPath("$[0].price").isNotEmpty());
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content", hasSize(25)))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(25))
+                .andExpect(jsonPath("$.totalElements", greaterThanOrEqualTo(50)))
+                .andExpect(jsonPath("$.hasNext").value(true))
+                .andExpect(jsonPath("$.content[0].symbol").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].companyName").isNotEmpty())
+                .andExpect(jsonPath("$.content[0].price").isNotEmpty());
+    }
+
+    @Test
+    void paginationPageOneReturnsDifferentStocks() throws Exception {
+        MvcResult page0Result = mockMvc.perform(get("/api/stocks")
+                        .param("page", "0")
+                        .param("size", "25")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        JsonNode page0Node = objectMapper.readTree(page0Result.getResponse().getContentAsString());
+        String page0FirstSymbol = page0Node.get("content").get(0).get("symbol").asText();
+
+        mockMvc.perform(get("/api/stocks")
+                        .param("page", "1")
+                        .param("size", "25")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page").value(1))
+                .andExpect(jsonPath("$.content", hasSize(25)))
+                .andExpect(jsonPath("$.content[0].symbol", not(equalTo(page0FirstSymbol))));
     }
 
     @Test
@@ -72,9 +102,10 @@ class StocksIntegrationTest {
                         .param("query", "NVDA")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].symbol").value("NVDA"))
-                .andExpect(jsonPath("$[0].companyName").value("NVIDIA Corporation"));
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].symbol").value("NVDA"))
+                .andExpect(jsonPath("$.content[0].companyName").value("NVIDIA Corporation"));
     }
 
     @Test
@@ -83,9 +114,10 @@ class StocksIntegrationTest {
                         .param("query", "Tesla")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].symbol").value("TSLA"))
-                .andExpect(jsonPath("$[0].companyName").value("Tesla, Inc."));
+                .andExpect(jsonPath("$.content", hasSize(1)))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].symbol").value("TSLA"))
+                .andExpect(jsonPath("$.content[0].companyName").value("Tesla, Inc."));
     }
 
     @Test
@@ -99,11 +131,13 @@ class StocksIntegrationTest {
     }
 
     @Test
-    void searchWithNoMatchesReturnsEmptyArray() throws Exception {
+    void searchWithNoMatchesReturnsEmptyContent() throws Exception {
         mockMvc.perform(get("/api/stocks/search")
                         .param("query", "NonExistentCompanyXYZ")
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$", hasSize(0)));
+                .andExpect(jsonPath("$.content", hasSize(0)))
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.hasNext").value(false));
     }
 }

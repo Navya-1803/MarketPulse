@@ -79,7 +79,11 @@ public class MarketDataService {
                 q.changePercent(),
                 q.dayHigh(),
                 q.dayLow(),
+                q.open(),
+                q.previousClose(),
                 q.volume(),
+                q.currency() != null ? q.currency() : "USD",
+                q.exchange() != null ? q.exchange() : "US",
                 q.capturedAt(),
                 status,
                 status == MarketStatus.STALE ? "Data is older than the freshness threshold" : null
