@@ -33,7 +33,7 @@ public class UserAccount {
     @Column(name = "password_hash", nullable = false)
     private String passwordHash;
 
-    @Column(name = "threshold_percent", nullable = false)
+    @Column(name = "threshold_percent", nullable = false, columnDefinition = "DOUBLE PRECISION DEFAULT 3.0")
     private Double thresholdPercent = 3.0;
 
     @Column(name = "created_at", nullable = false)
