@@ -64,6 +64,13 @@ public class DatabaseMigrationConfig {
                         stmt.execute("UPDATE users SET threshold_percent = 3.0 WHERE threshold_percent IS NULL");
                     }
                 }
+
+                // Race condition prevention: Ensure unique index on watchlist_stocks(watchlist_id, symbol)
+                try {
+                    stmt.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_watchlist_stocks_wl_symbol ON watchlist_stocks(watchlist_id, symbol)");
+                } catch (Exception e) {
+                    log.debug("Notice on unique index creation: {}", e.getMessage());
+                }
             } catch (Exception ex) {
                 log.warn("Database schema migration notice: {}", ex.getMessage());
             }

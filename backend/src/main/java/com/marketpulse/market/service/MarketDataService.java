@@ -1,6 +1,8 @@
 package com.marketpulse.market.service;
 
 import com.marketpulse.common.config.MarketProperties;
+import com.marketpulse.market.cache.InMemoryQuoteCache;
+import com.marketpulse.market.cache.QuoteCache;
 import com.marketpulse.market.dto.MarketQuoteDto;
 import com.marketpulse.market.entity.MarketSnapshot;
 import com.marketpulse.market.provider.MarketDataProvider;
@@ -13,7 +15,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,16 +24,27 @@ public class MarketDataService {
     private final MarketDataProvider marketDataProvider;
     private final MarketProperties properties;
     private final MarketSnapshotRepository snapshotRepository;
-    private final Map<String, CachedQuote> cache = new ConcurrentHashMap<>();
+    private final QuoteCache quoteCache;
+
+    @Autowired
+    public MarketDataService(
+            MarketDataProvider marketDataProvider,
+            MarketProperties properties,
+            MarketSnapshotRepository snapshotRepository,
+            QuoteCache quoteCache
+    ) {
+        this.marketDataProvider = marketDataProvider;
+        this.properties = properties;
+        this.snapshotRepository = snapshotRepository;
+        this.quoteCache = quoteCache;
+    }
 
     public MarketDataService(
             MarketDataProvider marketDataProvider,
             MarketProperties properties,
             MarketSnapshotRepository snapshotRepository
     ) {
-        this.marketDataProvider = marketDataProvider;
-        this.properties = properties;
-        this.snapshotRepository = snapshotRepository;
+        this(marketDataProvider, properties, snapshotRepository, new InMemoryQuoteCache());
     }
 
     public MarketQuoteDto getQuote(String symbol) {
@@ -51,10 +64,9 @@ public class MarketDataService {
     }
 
     public Optional<MarketQuote> fetchQuote(String symbol) {
-        CachedQuote cached = cache.get(symbol);
-        Instant now = Instant.now();
-        if (cached != null && Duration.between(cached.fetchedAt(), now).getSeconds() < properties.cacheTtlSeconds()) {
-            return cached.quote();
+        Optional<MarketQuote> cached = quoteCache.get(symbol);
+        if (cached.isPresent()) {
+            return cached;
         }
         Optional<MarketQuote> quote;
         try {
@@ -62,7 +74,7 @@ public class MarketDataService {
         } catch (Exception ex) {
             quote = Optional.empty();
         }
-        cache.put(symbol, new CachedQuote(quote, now));
+        quote.ifPresent(q -> quoteCache.put(symbol, q, Duration.ofSeconds(properties.cacheTtlSeconds())));
         return quote;
     }
 
@@ -118,8 +130,5 @@ public class MarketDataService {
 
     public Optional<MarketSnapshot> lastSnapshot(Long userId, String symbol) {
         return snapshotRepository.findTopByUserIdAndSymbolOrderByCapturedAtDesc(userId, symbol);
-    }
-
-    private record CachedQuote(Optional<MarketQuote> quote, Instant fetchedAt) {
     }
 }

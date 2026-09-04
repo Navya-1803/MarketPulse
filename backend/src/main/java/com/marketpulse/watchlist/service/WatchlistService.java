@@ -18,6 +18,7 @@ import com.marketpulse.watchlist.repository.WatchlistStockRepository;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -96,7 +97,15 @@ public class WatchlistService {
         stock.setWatchlist(watchlist);
         stock.setSymbol(symbol);
         watchlist.getStocks().add(stock);
-        watchlistStockRepository.save(stock);
+        // Race condition prevention: Two rapid concurrent calls adding the same symbol to the same watchlist
+        // can pass the application-level check simultaneously. The DB unique constraint on (watchlist_id, symbol)
+        // and saveAndFlush guarantee that concurrent duplicate inserts throw DataIntegrityViolationException,
+        // mapped back to the existing 409 Conflict response.
+        try {
+            watchlistStockRepository.saveAndFlush(stock);
+        } catch (DataIntegrityViolationException ex) {
+            throw new DuplicateResourceException(symbol + " is already in this watchlist");
+        }
         return toDetail(watchlist);
     }
 
