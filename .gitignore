@@ -1,0 +1,12 @@
+target/
+data/
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.idea/
+.vscode/
+.DS_Store
+frontend/coverage/
+backend/data/
